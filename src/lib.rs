@@ -94,6 +94,7 @@
 //! }
 //! ```
 
+#![no_std]
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
@@ -107,18 +108,23 @@
 extern crate log;
 extern crate unicode_width;
 
+#[macro_use]
+extern crate alloc;
+
+use alloc::borrow::ToOwned;
 use self::Fail::*;
 use self::HasArg::*;
 use self::Name::*;
 use self::Occur::*;
 use self::Optval::*;
 
-use std::error::Error;
-use std::ffi::OsStr;
-use std::fmt;
-use std::iter::{repeat, IntoIterator};
-use std::result;
-use std::str::FromStr;
+use core::fmt;
+use core::iter::{repeat, IntoIterator};
+use core::result;
+use core::str::FromStr;
+use alloc::vec::Vec;
+use alloc::string::{String, ToString};
+use alloc::boxed::Box;
 
 use unicode_width::UnicodeWidthStr;
 
@@ -425,7 +431,7 @@ impl Options {
     /// to display information about it.
     pub fn parse<C: IntoIterator>(&self, args: C) -> Result
     where
-        C::Item: AsRef<OsStr>,
+        C::Item: AsRef<str>,
     {
         let opts: Vec<Opt> = self.grps.iter().map(|x| x.long_to_short()).collect();
 
@@ -437,13 +443,8 @@ impl Options {
 
         let args = args
             .into_iter()
-            .map(|i| {
-                i.as_ref()
-                    .to_str()
-                    .ok_or_else(|| Fail::UnrecognizedOption(format!("{:?}", i.as_ref())))
-                    .map(|s| s.to_owned())
-            })
-            .collect::<::std::result::Result<Vec<_>, _>>()?;
+            .map(|s| Ok(s.as_ref().to_owned()))
+            .collect::<::core::result::Result<Vec<_>, _>>()?;
         let mut args = args.into_iter().peekable();
         let mut arg_pos = 0;
         while let Some(cur) = args.next() {
@@ -811,7 +812,7 @@ pub enum Fail {
     UnexpectedArgument(String),
 }
 
-impl Error for Fail {}
+// impl Error for Fail {}
 
 /// The result of parsing a command line with a set of options.
 pub type Result = result::Result<Matches, Fail>;
